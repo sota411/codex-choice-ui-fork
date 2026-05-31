@@ -2,6 +2,8 @@ use super::*;
 use codex_features::Feature;
 use codex_features::Features;
 use codex_protocol::config_types::ModeKind;
+use codex_protocol::request_user_input::RequestUserInputQuestion;
+use codex_protocol::request_user_input::RequestUserInputQuestionOption;
 use codex_tools::JsonSchema;
 use codex_tools::request_user_input_available_modes;
 use pretty_assertions::assert_eq;
@@ -46,6 +48,13 @@ fn request_user_input_tool_includes_questions_schema() {
                                     )),
                                 ),
                                 (
+                                    "isOther".to_string(),
+                                    JsonSchema::boolean(Some(
+                                        "When true, add a custom answer option. Omit unless the user needs free-form input."
+                                            .to_string(),
+                                    )),
+                                ),
+                                (
                                     "options".to_string(),
                                     JsonSchema::array(
                                         JsonSchema::object(
@@ -72,7 +81,7 @@ fn request_user_input_tool_includes_questions_schema() {
                                             Some(false.into()),
                                         ),
                                         Some(
-                                            "Provide 2-3 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". Do not include an \"Other\" option in this list; the client will add a free-form \"Other\" option automatically."
+                                            "Provide 2-6 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include an \"Other\" option; set isOther only when free-form input is needed."
                                                 .to_string(),
                                         ),
                                     ),
@@ -100,6 +109,42 @@ fn request_user_input_tool_includes_questions_schema() {
             output_schema: None,
         })
     );
+}
+
+fn request_user_input_question(is_other: bool) -> RequestUserInputQuestion {
+    RequestUserInputQuestion {
+        id: "choice".to_string(),
+        header: "Choice".to_string(),
+        question: "Choose an option.".to_string(),
+        is_other,
+        is_secret: false,
+        options: Some(vec![RequestUserInputQuestionOption {
+            label: "Option 1".to_string(),
+            description: "Prioritizes the first path and trades off the second.".to_string(),
+        }]),
+    }
+}
+
+#[test]
+fn normalize_request_user_input_args_preserves_default_is_other_false() {
+    let args = RequestUserInputArgs {
+        questions: vec![request_user_input_question(false)],
+    };
+
+    let normalized = normalize_request_user_input_args(args.clone()).expect("valid input");
+
+    assert_eq!(normalized, args);
+}
+
+#[test]
+fn normalize_request_user_input_args_preserves_explicit_is_other_true() {
+    let args = RequestUserInputArgs {
+        questions: vec![request_user_input_question(true)],
+    };
+
+    let normalized = normalize_request_user_input_args(args.clone()).expect("valid input");
+
+    assert_eq!(normalized, args);
 }
 
 #[test]

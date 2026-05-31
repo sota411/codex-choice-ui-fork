@@ -26,7 +26,7 @@ pub fn create_request_user_input_tool(description: String) -> ToolSpec {
             Some(vec!["label".to_string(), "description".to_string()]),
             Some(false.into()),
         ), Some(
-            "Provide 2-3 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". Do not include an \"Other\" option in this list; the client will add a free-form \"Other\" option automatically."
+            "Provide 2-6 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include an \"Other\" option; set isOther only when free-form input is needed."
                 .to_string(),
         ));
 
@@ -50,6 +50,13 @@ pub fn create_request_user_input_tool(description: String) -> ToolSpec {
             )),
         ),
         ("options".to_string(), options_schema),
+        (
+            "isOther".to_string(),
+            JsonSchema::boolean(Some(
+                "When true, add a custom answer option. Omit unless the user needs free-form input."
+                    .to_string(),
+            )),
+        ),
     ]);
 
     let questions_schema = JsonSchema::array(
@@ -97,7 +104,7 @@ pub fn request_user_input_unavailable_message(
 }
 
 pub fn normalize_request_user_input_args(
-    mut args: RequestUserInputArgs,
+    args: RequestUserInputArgs,
 ) -> Result<RequestUserInputArgs, String> {
     let missing_options = args
         .questions
@@ -105,10 +112,6 @@ pub fn normalize_request_user_input_args(
         .any(|question| question.options.as_ref().is_none_or(Vec::is_empty));
     if missing_options {
         return Err("request_user_input requires non-empty options for every question".to_string());
-    }
-
-    for question in &mut args.questions {
-        question.is_other = true;
     }
 
     Ok(args)
