@@ -53,8 +53,8 @@ const MIN_COMPOSER_HEIGHT: u16 = 3;
 const SELECT_OPTION_PLACEHOLDER: &str = "Select an option to add notes";
 pub(super) const TIP_SEPARATOR: &str = " | ";
 pub(super) const DESIRED_SPACERS_BETWEEN_SECTIONS: u16 = 2;
-const OTHER_OPTION_LABEL: &str = "None of the above";
-const OTHER_OPTION_DESCRIPTION: &str = "Optionally, add details in notes (tab).";
+const OTHER_OPTION_LABEL: &str = "Custom answer";
+const OTHER_OPTION_DESCRIPTION: &str = "Type your custom answer.";
 const UNANSWERED_CONFIRM_TITLE: &str = "Submit with unanswered questions?";
 const UNANSWERED_CONFIRM_GO_BACK: &str = "Go back";
 const UNANSWERED_CONFIRM_GO_BACK_DESC: &str = "Return to the first unanswered question.";
@@ -1437,6 +1437,34 @@ mod tests {
         }
     }
 
+    fn question_with_four_options(id: &str, header: &str) -> ToolRequestUserInputQuestion {
+        ToolRequestUserInputQuestion {
+            id: id.to_string(),
+            header: header.to_string(),
+            question: "Choose an option.".to_string(),
+            is_other: false,
+            is_secret: false,
+            options: Some(vec![
+                ToolRequestUserInputOption {
+                    label: "Option 1".to_string(),
+                    description: "First choice.".to_string(),
+                },
+                ToolRequestUserInputOption {
+                    label: "Option 2".to_string(),
+                    description: "Second choice.".to_string(),
+                },
+                ToolRequestUserInputOption {
+                    label: "Option 3".to_string(),
+                    description: "Third choice.".to_string(),
+                },
+                ToolRequestUserInputOption {
+                    label: "Option 4".to_string(),
+                    description: "Fourth choice.".to_string(),
+                },
+            ]),
+        }
+    }
+
     fn question_with_wrapped_options(id: &str, header: &str) -> ToolRequestUserInputQuestion {
         ToolRequestUserInputQuestion {
             id: id.to_string(),
@@ -2708,7 +2736,45 @@ mod tests {
     }
 
     #[test]
-    fn is_other_adds_none_of_the_above_and_submits_it() {
+    fn is_other_false_does_not_add_custom_answer() {
+        let (tx, _rx) = test_sender();
+        let overlay = RequestUserInputOverlay::new(
+            request_event("turn-1", vec![question_with_options("q1", "Pick one")]),
+            tx,
+            /*has_input_focus*/ true,
+            /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
+
+        let rows = overlay.option_rows();
+
+        assert_eq!(rows.len(), 3);
+        assert!(rows.iter().all(|row| !row.name.contains("Custom answer")));
+    }
+
+    #[test]
+    fn four_options_render_without_custom_answer() {
+        let (tx, _rx) = test_sender();
+        let overlay = RequestUserInputOverlay::new(
+            request_event("turn-1", vec![question_with_four_options("q1", "Pick one")]),
+            tx,
+            /*has_input_focus*/ true,
+            /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
+
+        let rows = overlay.option_rows();
+
+        assert_eq!(rows.len(), 4);
+        assert_eq!(
+            rows.last().expect("expected fourth option").name,
+            "  4. Option 4"
+        );
+        assert!(rows.iter().all(|row| !row.name.contains("Custom answer")));
+    }
+
+    #[test]
+    fn is_other_adds_custom_answer_and_submits_freeform_value() {
         let (tx, mut rx) = test_sender();
         let mut overlay = RequestUserInputOverlay::new(
             request_event(
@@ -2722,11 +2788,11 @@ mod tests {
         );
 
         let rows = overlay.option_rows();
-        let other_row = rows.last().expect("expected none-of-the-above row");
-        assert_eq!(other_row.name, "  4. None of the above");
+        let other_row = rows.last().expect("expected custom answer row");
+        assert_eq!(other_row.name, "  4. Custom answer");
         assert_eq!(
             other_row.description.as_deref(),
-            Some(OTHER_OPTION_DESCRIPTION)
+            Some("Type your custom answer.")
         );
 
         let other_idx = overlay.options_len().saturating_sub(1);
@@ -2736,7 +2802,7 @@ mod tests {
         }
         overlay
             .composer
-            .set_text_content("Custom answer".to_string(), Vec::new(), Vec::new());
+            .set_text_content("Typed custom value".to_string(), Vec::new(), Vec::new());
         overlay.composer.move_cursor_to_end();
         let draft = overlay.capture_composer_draft();
         if let Some(answer) = overlay.current_answer_mut() {
@@ -2755,7 +2821,7 @@ mod tests {
             answer.answers,
             vec![
                 OTHER_OPTION_LABEL.to_string(),
-                "user_note: Custom answer".to_string(),
+                "user_note: Typed custom value".to_string(),
             ]
         );
     }
@@ -2832,6 +2898,26 @@ mod tests {
         let area = Rect::new(0, 0, 120, 16);
         insta::assert_snapshot!(
             "request_user_input_options",
+            render_snapshot(&overlay, area)
+        );
+    }
+
+    #[test]
+    fn request_user_input_options_with_custom_answer_snapshot() {
+        let (tx, _rx) = test_sender();
+        let overlay = RequestUserInputOverlay::new(
+            request_event(
+                "turn-1",
+                vec![question_with_options_and_other("q1", "Area")],
+            ),
+            tx,
+            /*has_input_focus*/ true,
+            /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
+        let area = Rect::new(0, 0, 120, 18);
+        insta::assert_snapshot!(
+            "request_user_input_options_with_custom_answer",
             render_snapshot(&overlay, area)
         );
     }
