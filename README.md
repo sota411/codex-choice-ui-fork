@@ -108,6 +108,34 @@ max_questions = 4
 
 初回起動時や hook 変更後は、Codex 内で `/hooks` を開き、`codex_memo_guard.py` の hook を信頼してください。完了時は今回分の `pending` マーカーを `done` に変更し、各項目を埋めます。該当しない項目は `なし` と書けば通ります。
 
+## 公式版への追従
+
+`.github/workflows/upstream-sync.yml` が、毎日または手動実行で公式 `openai/codex` の `main` を取り込み、`bot/upstream-sync` から PR を作成します。PR 作成前に request_user_input 系テストと `cargo build --bin codex` を実行します。
+
+PR 作成で通常の CI も起動したい場合は、Repository secrets に `UPSTREAM_SYNC_TOKEN` を追加してください。未設定でも PR は作れますが、`GITHUB_TOKEN` 由来の PR では別 workflow が自動起動しない制限があります。
+
+PR を merge した後、手元の `codex-custom` を更新します。
+
+```bash
+git pull
+```
+
+```bash
+cd codex-rs
+```
+
+```bash
+cargo build --bin codex
+```
+
+```bash
+ln -sf /home/sota411/Documents/project/codex-choice-ui-fork/codex-rs/target/debug/codex /home/sota411/.local/bin/codex-custom
+```
+
+```bash
+codex-custom --version
+```
+
 ## 動作確認
 
 ```bash

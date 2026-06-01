@@ -1,0 +1,143 @@
+name: upstream-sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:00 JST daily.
+    - cron: "0 18 * * *"
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      BRANCH_NAME: bot/upstream-sync
+      GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure git
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/openai/codex.git
+          git fetch origin "$BRANCH_NAME:refs/remotes/origin/$BRANCH_NAME" || true
+          git fetch upstream main
+
+      - name: Merge upstream main
+        id: merge
+        run: |
+          set -euo pipefail
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already contains upstream/main."
+            exit 0
+          fi
+
+          git switch -c "$BRANCH_NAME"
+          git merge --no-ff -m "chore: 公式 Codex の最新版を取り込み" upstream/main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Rust
+        if: steps.merge.outputs.changed == 'true'
+        uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582 # 1.95.0
+
+      - name: Install just
+        if: steps.merge.outputs.changed == 'true'
+        uses: taiki-e/install-action@44c6d64aa62cd779e873306675c7a58e86d6d532 # v2.62.49
+        with:
+          tool: just
+
+      - name: Test request_user_input
+        if: steps.merge.outputs.changed == 'true'
+        working-directory: codex-rs
+        run: just test -p codex-core request_user_input
+
+      - name: Test config schema
+        if: steps.merge.outputs.changed == 'true'
+        working-directory: codex-rs
+        run: just test -p codex-core config_schema
+
+      - name: Test TUI request_user_input
+        if: steps.merge.outputs.changed == 'true'
+        working-directory: codex-rs
+        run: just test -p codex-tui request_user_input
+
+      - name: Build codex
+        if: steps.merge.outputs.changed == 'true'
+        working-directory: codex-rs
+        run: cargo build --bin codex
+
+      - name: Push sync branch
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git push --force-with-lease "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH_NAME}"
+
+      - name: Open or update pull request
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+
+          body_file="$(mktemp)"
+          cat > "$body_file" <<'BODY'
+          公式 `openai/codex` の `main` をこの fork に取り込む自動 PR です。
+
+          この workflow 内で以下を確認しています。
+
+          - `just test -p codex-core request_user_input`
+          - `just test -p codex-core config_schema`
+          - `just test -p codex-tui request_user_input`
+          - `cargo build --bin codex`
+
+          merge 後は手元で以下を実行してください。
+
+          ```bash
+          cd /home/sota411/Documents/project/codex-choice-ui-fork
+          ```
+
+          ```bash
+          git pull
+          ```
+
+          ```bash
+          cd codex-rs
+          ```
+
+          ```bash
+          cargo build --bin codex
+          ```
+
+          ```bash
+          ln -sf /home/sota411/Documents/project/codex-choice-ui-fork/codex-rs/target/debug/codex /home/sota411/.local/bin/codex-custom
+          ```
+
+          ```bash
+          codex-custom --version
+          ```
+          BODY
+
+          if gh pr view "$BRANCH_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh pr edit "$BRANCH_NAME" --repo "$GITHUB_REPOSITORY" --title "公式 Codex の最新版を取り込み" --body-file "$body_file"
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH_NAME" --title "公式 Codex の最新版を取り込み" --body-file "$body_file"
+          fi
