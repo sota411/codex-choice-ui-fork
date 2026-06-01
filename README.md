@@ -98,6 +98,16 @@ max_questions = 4
 
 この例では、1回の選択UIで最大4問まで出せて、各質問は `5択 + Custom answer` になります。`default_options_count = 0` と `max_questions = 0` は無効です。設定変更後は Codex を再起動してください。
 
+## 作業メモの強制
+
+通常版とカスタム版の両方で、Codex hooks により `memo.md` の記録を強制します。
+
+- `UserPromptSubmit` hook が作業開始時に `memo.md` へテンプレートを追加します。
+- `Stop` hook が未記入や `pending` マーカーを検出すると、Codex にメモ追記を促して終了を止めます。
+- Git の `pre-commit` hook も未完了メモが残っている commit を止めます。
+
+初回起動時や hook 変更後は、Codex 内で `/hooks` を開き、`codex_memo_guard.py` の hook を信頼してください。完了時は今回分の `pending` マーカーを `done` に変更し、各項目を埋めます。該当しない項目は `なし` と書けば通ります。
+
 ## 動作確認
 
 ```bash
