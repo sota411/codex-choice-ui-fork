@@ -193,6 +193,7 @@ pub(crate) const HARD_MIN_MULTI_AGENT_V2_TIMEOUT_MS: i64 = 0;
 pub(crate) const HARD_MAX_MULTI_AGENT_V2_TIMEOUT_MS: i64 =
     DEFAULT_MULTI_AGENT_V2_MAX_WAIT_TIMEOUT_MS;
 pub(crate) const DEFAULT_REQUEST_USER_INPUT_OPTIONS_COUNT: usize = 4;
+pub(crate) const DEFAULT_REQUEST_USER_INPUT_MAX_QUESTIONS: usize = 3;
 pub(crate) const DEFAULT_AGENT_MAX_DEPTH: i32 = 1;
 pub(crate) const DEFAULT_AGENT_JOB_MAX_RUNTIME_SECONDS: Option<u64> = None;
 const LOCAL_DEV_BUILD_VERSION: &str = "0.0.0";
@@ -945,6 +946,9 @@ pub struct Config {
 
     /// Number of normal choices request_user_input should require before adding free-form input.
     pub request_user_input_default_options_count: usize,
+
+    /// Maximum number of questions request_user_input should accept.
+    pub request_user_input_max_questions: usize,
 
     /// If set to `true`, used only the experimental unified exec tool.
     pub use_experimental_unified_exec_tool: bool,
@@ -2230,6 +2234,16 @@ fn resolve_request_user_input_default_options_count(config_toml: &ConfigToml) ->
         .unwrap_or(DEFAULT_REQUEST_USER_INPUT_OPTIONS_COUNT)
 }
 
+fn resolve_request_user_input_max_questions(config_toml: &ConfigToml) -> usize {
+    config_toml
+        .tools
+        .as_ref()
+        .and_then(|tools| tools.experimental_request_user_input.as_ref())
+        .and_then(|config| config.max_questions)
+        .map(usize::from)
+        .unwrap_or(DEFAULT_REQUEST_USER_INPUT_MAX_QUESTIONS)
+}
+
 fn resolve_multi_agent_v2_config(config_toml: &ConfigToml) -> MultiAgentV2Config {
     let base = multi_agent_v2_toml_config(config_toml.features.as_ref());
     let default = MultiAgentV2Config::default();
@@ -2945,6 +2959,7 @@ impl Config {
             resolve_experimental_request_user_input_enabled(&cfg);
         let request_user_input_default_options_count =
             resolve_request_user_input_default_options_count(&cfg);
+        let request_user_input_max_questions = resolve_request_user_input_max_questions(&cfg);
         let multi_agent_v2 = resolve_multi_agent_v2_config(&cfg);
         let apps_mcp_path_override = if features.enabled(Feature::AppsMcpPathOverride) {
             let base = apps_mcp_path_override_toml_config(cfg.features.as_ref());
@@ -3503,6 +3518,7 @@ impl Config {
             web_search_config,
             experimental_request_user_input_enabled,
             request_user_input_default_options_count,
+            request_user_input_max_questions,
             use_experimental_unified_exec_tool,
             background_terminal_max_timeout,
             ghost_snapshot,

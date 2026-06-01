@@ -62,6 +62,7 @@ Do not ask questions that can be answered from the repo or system (for example, 
 Critical rules:
 
 * Prefer using the `request_user_input` tool when a bounded choice materially changes the plan.
+* Ask no more questions in one `request_user_input` call than the tool schema allows. The standard default is 3 questions, but the schema is the source of truth when configured otherwise.
 * Offer only meaningful multiple‑choice options; don’t include filler choices that are obviously wrong or irrelevant.
 * Use exactly the number of normal choices required by the `request_user_input` tool schema. The standard default is 4 choices, but the schema is the source of truth when configured otherwise.
 * If a decision needs a different number of realistic choices than the configured schema allows, ask in normal chat with a numbered list instead of forcing it into `request_user_input`.

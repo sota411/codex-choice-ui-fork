@@ -47,6 +47,10 @@ pub struct JsonSchema {
     pub enum_values: Option<Vec<JsonValue>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub items: Option<Box<JsonSchema>>,
+    #[serde(rename = "minItems", skip_serializing_if = "Option::is_none")]
+    pub min_items: Option<usize>,
+    #[serde(rename = "maxItems", skip_serializing_if = "Option::is_none")]
+    pub max_items: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<BTreeMap<String, JsonSchema>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -116,6 +120,22 @@ impl JsonSchema {
             schema_type: Some(JsonSchemaType::Single(JsonSchemaPrimitiveType::Array)),
             description,
             items: Some(Box::new(items)),
+            ..Default::default()
+        }
+    }
+
+    pub fn array_with_bounds(
+        items: JsonSchema,
+        description: Option<String>,
+        min_items: Option<usize>,
+        max_items: Option<usize>,
+    ) -> Self {
+        Self {
+            schema_type: Some(JsonSchemaType::Single(JsonSchemaPrimitiveType::Array)),
+            description,
+            items: Some(Box::new(items)),
+            min_items,
+            max_items,
             ..Default::default()
         }
     }
@@ -458,7 +478,11 @@ fn sanitize_json_schema(value: &mut JsonValue) {
                     || map.contains_key("additionalProperties")
                 {
                     schema_types.push(JsonSchemaPrimitiveType::Object);
-                } else if map.contains_key("items") || map.contains_key("prefixItems") {
+                } else if map.contains_key("items")
+                    || map.contains_key("prefixItems")
+                    || map.contains_key("minItems")
+                    || map.contains_key("maxItems")
+                {
                     schema_types.push(JsonSchemaPrimitiveType::Array);
                 } else if map.contains_key("enum") || map.contains_key("format") {
                     schema_types.push(JsonSchemaPrimitiveType::String);

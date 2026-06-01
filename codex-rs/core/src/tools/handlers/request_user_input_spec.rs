@@ -10,6 +10,7 @@ pub const REQUEST_USER_INPUT_TOOL_NAME: &str = "request_user_input";
 pub fn create_request_user_input_tool(
     description: String,
     default_options_count: usize,
+    max_questions: usize,
 ) -> ToolSpec {
     let option_props = BTreeMap::from([
         (
@@ -24,7 +25,7 @@ pub fn create_request_user_input_tool(
         ),
     ]);
 
-    let options_schema = JsonSchema::array(
+    let options_schema = JsonSchema::array_with_bounds(
         JsonSchema::object(
             option_props,
             Some(vec!["label".to_string(), "description".to_string()]),
@@ -33,6 +34,8 @@ pub fn create_request_user_input_tool(
         Some(format!(
             "Provide exactly {default_options_count} mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include a free-form answer option; the client will add \"Custom answer\" automatically."
         )),
+        Some(default_options_count),
+        Some(default_options_count),
     );
 
     let question_props = BTreeMap::from([
@@ -57,7 +60,7 @@ pub fn create_request_user_input_tool(
         ("options".to_string(), options_schema),
     ]);
 
-    let questions_schema = JsonSchema::array(
+    let questions_schema = JsonSchema::array_with_bounds(
         JsonSchema::object(
             question_props,
             Some(vec![
@@ -68,7 +71,11 @@ pub fn create_request_user_input_tool(
             ]),
             Some(false.into()),
         ),
-        Some("Questions to show the user. Prefer 1 and do not exceed 3".to_string()),
+        Some(format!(
+            "Questions to show the user. Prefer 1 and do not exceed {max_questions}"
+        )),
+        Some(1),
+        Some(max_questions),
     );
 
     let properties = BTreeMap::from([("questions".to_string(), questions_schema)]);
@@ -104,11 +111,22 @@ pub fn request_user_input_unavailable_message(
 pub fn normalize_request_user_input_args(
     mut args: RequestUserInputArgs,
     default_options_count: usize,
+    max_questions: usize,
 ) -> Result<RequestUserInputArgs, String> {
     if default_options_count == 0 {
         return Err(
             "request_user_input default options count must be greater than zero".to_string(),
         );
+    }
+    if max_questions == 0 {
+        return Err("request_user_input max questions must be greater than zero".to_string());
+    }
+
+    let questions_count = args.questions.len();
+    if questions_count == 0 || questions_count > max_questions {
+        return Err(format!(
+            "request_user_input requires between 1 and {max_questions} questions; received {questions_count}"
+        ));
     }
 
     for question in &mut args.questions {
@@ -124,10 +142,13 @@ pub fn normalize_request_user_input_args(
     Ok(args)
 }
 
-pub fn request_user_input_tool_description(available_modes: &[ModeKind]) -> String {
+pub fn request_user_input_tool_description(
+    available_modes: &[ModeKind],
+    max_questions: usize,
+) -> String {
     let allowed_modes = format_allowed_modes(available_modes);
     format!(
-        "Request user input for one to three short questions and wait for the response. This tool is only available in {allowed_modes}."
+        "Request user input for up to {max_questions} short questions and wait for the response. This tool is only available in {allowed_modes}."
     )
 }
 

@@ -357,6 +357,34 @@ fn parse_tool_input_schema_infers_array_from_prefix_items() {
 }
 
 #[test]
+fn parse_tool_input_schema_preserves_array_bounds() {
+    // Example schema shape:
+    // {
+    //   "minItems": 1,
+    //   "maxItems": 3
+    // }
+    //
+    // Expected normalization behavior:
+    // - Array bounds imply an array schema when `type` is omitted.
+    // - Arrays missing `items` receive a permissive string `items` schema.
+    let schema = parse_tool_input_schema(&serde_json::json!({
+        "minItems": 1,
+        "maxItems": 3
+    }))
+    .expect("parse schema");
+
+    assert_eq!(
+        schema,
+        JsonSchema::array_with_bounds(
+            JsonSchema::string(/*description*/ None),
+            /*description*/ None,
+            Some(1),
+            Some(3),
+        )
+    );
+}
+
+#[test]
 fn parse_tool_input_schema_preserves_boolean_additional_properties_on_inferred_object() {
     // Example schema shape:
     // {

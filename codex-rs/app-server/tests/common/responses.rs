@@ -73,6 +73,12 @@ pub fn create_request_user_input_sse_response(call_id: &str) -> anyhow::Result<S
             }, {
                 "label": "No",
                 "description": "Stop and revisit the approach."
+            }, {
+                "label": "Adjust",
+                "description": "Revise the plan before continuing."
+            }, {
+                "label": "Later",
+                "description": "Defer the decision until more context is available."
             }]
         }]
     }))?;

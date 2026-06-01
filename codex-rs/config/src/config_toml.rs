@@ -632,6 +632,8 @@ pub struct ExperimentalRequestUserInput {
     pub enabled: bool,
     #[schemars(range(min = 1))]
     pub default_options_count: Option<NonZeroUsize>,
+    #[schemars(range(min = 1))]
+    pub max_questions: Option<NonZeroUsize>,
 }
 
 #[derive(Deserialize)]

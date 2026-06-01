@@ -22,7 +22,7 @@ fn default_available_modes() -> Vec<ModeKind> {
 #[test]
 fn request_user_input_tool_includes_questions_schema() {
     assert_eq!(
-        create_request_user_input_tool("Ask the user to choose.".to_string(), 4),
+        create_request_user_input_tool("Ask the user to choose.".to_string(), 4, 3),
         ToolSpec::Function(ResponsesApiTool {
             name: "request_user_input".to_string(),
             description: "Ask the user to choose.".to_string(),
@@ -30,7 +30,7 @@ fn request_user_input_tool_includes_questions_schema() {
             defer_loading: None,
             parameters: JsonSchema::object(BTreeMap::from([(
                     "questions".to_string(),
-                    JsonSchema::array(
+                    JsonSchema::array_with_bounds(
                         JsonSchema::object(
                             BTreeMap::from([
                                 (
@@ -49,7 +49,7 @@ fn request_user_input_tool_includes_questions_schema() {
                                 ),
                                 (
                                     "options".to_string(),
-                                    JsonSchema::array(
+                                    JsonSchema::array_with_bounds(
                                         JsonSchema::object(
                                             BTreeMap::from([
                                                 (
@@ -77,6 +77,8 @@ fn request_user_input_tool_includes_questions_schema() {
                                             "Provide exactly 4 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include a free-form answer option; the client will add \"Custom answer\" automatically."
                                                 .to_string(),
                                         ),
+                                        Some(4),
+                                        Some(4),
                                     ),
                                 ),
                                 (
@@ -97,6 +99,8 @@ fn request_user_input_tool_includes_questions_schema() {
                         Some(
                             "Questions to show the user. Prefer 1 and do not exceed 3".to_string(),
                         ),
+                        Some(1),
+                        Some(3),
                     ),
                 )]), Some(vec!["questions".to_string()]), Some(false.into())),
             output_schema: None,
@@ -128,7 +132,7 @@ fn normalize_request_user_input_args_adds_custom_answer_by_default() {
         questions: vec![request_user_input_question(false)],
     };
 
-    let normalized = normalize_request_user_input_args(args, 4).expect("valid input");
+    let normalized = normalize_request_user_input_args(args, 4, 3).expect("valid input");
 
     assert!(normalized.questions[0].is_other);
 }
@@ -139,7 +143,7 @@ fn normalize_request_user_input_args_keeps_custom_answer_enabled() {
         questions: vec![request_user_input_question(true)],
     };
 
-    let normalized = normalize_request_user_input_args(args.clone(), 4).expect("valid input");
+    let normalized = normalize_request_user_input_args(args.clone(), 4, 3).expect("valid input");
 
     assert_eq!(normalized, args);
 }
@@ -151,11 +155,66 @@ fn normalize_request_user_input_args_rejects_wrong_option_count() {
     };
     args.questions[0].options.as_mut().expect("options").pop();
 
-    let err = normalize_request_user_input_args(args, 4).expect_err("wrong option count");
+    let err = normalize_request_user_input_args(args, 4, 3).expect_err("wrong option count");
 
     assert_eq!(
         err,
         "request_user_input requires exactly 4 options for every question; received 3"
+    );
+}
+
+#[test]
+fn normalize_request_user_input_args_rejects_no_questions() {
+    let args = RequestUserInputArgs {
+        questions: Vec::new(),
+    };
+
+    let err = normalize_request_user_input_args(args, 4, 3).expect_err("no questions");
+
+    assert_eq!(
+        err,
+        "request_user_input requires between 1 and 3 questions; received 0"
+    );
+}
+
+#[test]
+fn normalize_request_user_input_args_rejects_too_many_questions() {
+    let args = RequestUserInputArgs {
+        questions: vec![
+            request_user_input_question(false),
+            request_user_input_question(false),
+            request_user_input_question(false),
+            request_user_input_question(false),
+        ],
+    };
+
+    let err = normalize_request_user_input_args(args, 4, 3).expect_err("too many questions");
+
+    assert_eq!(
+        err,
+        "request_user_input requires between 1 and 3 questions; received 4"
+    );
+}
+
+#[test]
+fn normalize_request_user_input_args_accepts_configured_question_count() {
+    let args = RequestUserInputArgs {
+        questions: vec![
+            request_user_input_question(false),
+            request_user_input_question(false),
+            request_user_input_question(false),
+            request_user_input_question(false),
+        ],
+    };
+
+    let normalized = normalize_request_user_input_args(args, 4, 4).expect("configured max");
+
+    assert_eq!(normalized.questions.len(), 4);
+    assert!(
+        normalized
+            .questions
+            .iter()
+            .all(|question| question.is_other)
     );
 }
 
@@ -192,11 +251,11 @@ fn request_user_input_unavailable_messages_respect_default_mode_feature_flag() {
 #[test]
 fn request_user_input_tool_description_mentions_available_modes() {
     assert_eq!(
-        request_user_input_tool_description(&default_available_modes()),
-        "Request user input for one to three short questions and wait for the response. This tool is only available in Plan mode.".to_string()
+        request_user_input_tool_description(&default_available_modes(), 3),
+        "Request user input for up to 3 short questions and wait for the response. This tool is only available in Plan mode.".to_string()
     );
     assert_eq!(
-        request_user_input_tool_description(&default_mode_enabled_available_modes()),
-        "Request user input for one to three short questions and wait for the response. This tool is only available in Default or Plan mode.".to_string()
+        request_user_input_tool_description(&default_mode_enabled_available_modes(), 5),
+        "Request user input for up to 5 short questions and wait for the response. This tool is only available in Default or Plan mode.".to_string()
     );
 }

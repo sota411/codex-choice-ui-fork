@@ -774,6 +774,11 @@
         "enabled": {
           "default": true,
           "type": "boolean"
+        },
+        "max_questions": {
+          "format": "uint",
+          "minimum": 1.0,
+          "type": "integer"
         }
       },
       "type": "object"

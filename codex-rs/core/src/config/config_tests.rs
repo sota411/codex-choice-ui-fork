@@ -435,6 +435,7 @@ fn tools_experimental_request_user_input_defaults_to_enabled() {
             experimental_request_user_input: Some(ExperimentalRequestUserInput {
                 enabled: true,
                 default_options_count: None,
+                max_questions: None,
             }),
         })
     );
@@ -457,6 +458,7 @@ enabled = false
             experimental_request_user_input: Some(ExperimentalRequestUserInput {
                 enabled: false,
                 default_options_count: None,
+                max_questions: None,
             }),
         })
     );
@@ -472,6 +474,7 @@ async fn load_config_resolves_experimental_request_user_input_enabled() -> std::
                 experimental_request_user_input: Some(ExperimentalRequestUserInput {
                     enabled: false,
                     default_options_count: None,
+                    max_questions: None,
                 }),
             }),
             ..ConfigToml::default()
@@ -502,6 +505,7 @@ default_options_count = 6
             experimental_request_user_input: Some(ExperimentalRequestUserInput {
                 enabled: true,
                 default_options_count: NonZeroUsize::new(6),
+                max_questions: None,
             }),
         })
     );
@@ -533,6 +537,7 @@ async fn load_config_resolves_request_user_input_default_options_count() -> std:
                 experimental_request_user_input: Some(ExperimentalRequestUserInput {
                     enabled: true,
                     default_options_count: NonZeroUsize::new(6),
+                    max_questions: None,
                 }),
             }),
             ..ConfigToml::default()
@@ -543,6 +548,69 @@ async fn load_config_resolves_request_user_input_default_options_count() -> std:
     .await?;
 
     assert_eq!(config.request_user_input_default_options_count, 6);
+    Ok(())
+}
+
+#[test]
+fn tools_experimental_request_user_input_deserializes_max_questions() {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+[tools.experimental_request_user_input]
+max_questions = 5
+"#,
+    )
+    .expect("TOML deserialization should succeed");
+
+    assert_eq!(
+        cfg.tools,
+        Some(ToolsToml {
+            web_search: None,
+            experimental_request_user_input: Some(ExperimentalRequestUserInput {
+                enabled: true,
+                default_options_count: None,
+                max_questions: NonZeroUsize::new(5),
+            }),
+        })
+    );
+}
+
+#[test]
+fn tools_experimental_request_user_input_rejects_zero_max_questions() {
+    let err = toml::from_str::<ConfigToml>(
+        r#"
+[tools.experimental_request_user_input]
+max_questions = 0
+"#,
+    )
+    .expect_err("zero questions should fail");
+
+    assert!(
+        err.to_string()
+            .contains("invalid value: integer `0`, expected a nonzero usize")
+    );
+}
+
+#[tokio::test]
+async fn load_config_resolves_request_user_input_max_questions() -> std::io::Result<()> {
+    let codex_home = tempdir()?;
+    let config = Config::load_from_base_config_with_overrides(
+        ConfigToml {
+            tools: Some(ToolsToml {
+                web_search: None,
+                experimental_request_user_input: Some(ExperimentalRequestUserInput {
+                    enabled: true,
+                    default_options_count: None,
+                    max_questions: NonZeroUsize::new(5),
+                }),
+            }),
+            ..ConfigToml::default()
+        },
+        ConfigOverrides::default(),
+        codex_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.request_user_input_max_questions, 5);
     Ok(())
 }
 
@@ -557,6 +625,20 @@ async fn load_config_defaults_request_user_input_options_count_to_four() -> std:
     .await?;
 
     assert_eq!(config.request_user_input_default_options_count, 4);
+    Ok(())
+}
+
+#[tokio::test]
+async fn load_config_defaults_request_user_input_max_questions_to_three() -> std::io::Result<()> {
+    let codex_home = tempdir()?;
+    let config = Config::load_from_base_config_with_overrides(
+        ConfigToml::default(),
+        ConfigOverrides::default(),
+        codex_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.request_user_input_max_questions, 3);
     Ok(())
 }
 

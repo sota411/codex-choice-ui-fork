@@ -266,6 +266,8 @@ fn new_config(model: Option<String>, arg0_paths: Arg0DispatchPaths) -> anyhow::R
         web_search_mode: Constrained::allow_any(WebSearchMode::Disabled),
         web_search_config: None,
         experimental_request_user_input_enabled: true,
+        request_user_input_default_options_count: 4,
+        request_user_input_max_questions: 3,
         use_experimental_unified_exec_tool: false,
         background_terminal_max_timeout: 300_000,
         ghost_snapshot: GhostSnapshotConfig::default(),

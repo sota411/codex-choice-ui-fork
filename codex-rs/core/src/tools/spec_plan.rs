@@ -604,6 +604,7 @@ fn add_core_utility_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut
         planned_tools.add(RequestUserInputHandler {
             available_modes: request_user_input_available_modes(features),
             default_options_count: turn_context.config.request_user_input_default_options_count,
+            max_questions: turn_context.config.request_user_input_max_questions,
         });
     }
 
