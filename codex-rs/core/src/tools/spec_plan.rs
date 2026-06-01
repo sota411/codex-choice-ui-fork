@@ -603,6 +603,7 @@ fn add_core_utility_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut
     if turn_context.config.experimental_request_user_input_enabled {
         planned_tools.add(RequestUserInputHandler {
             available_modes: request_user_input_available_modes(features),
+            default_options_count: turn_context.config.request_user_input_default_options_count,
         });
     }
 

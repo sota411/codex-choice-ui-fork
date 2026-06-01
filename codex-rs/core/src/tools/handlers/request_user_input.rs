@@ -18,6 +18,7 @@ use codex_tools::ToolSpec;
 
 pub struct RequestUserInputHandler {
     pub available_modes: Vec<ModeKind>,
+    pub default_options_count: usize,
 }
 
 #[async_trait::async_trait]
@@ -27,7 +28,10 @@ impl ToolExecutor<ToolInvocation> for RequestUserInputHandler {
     }
 
     fn spec(&self) -> ToolSpec {
-        create_request_user_input_tool(request_user_input_tool_description(&self.available_modes))
+        create_request_user_input_tool(
+            request_user_input_tool_description(&self.available_modes),
+            self.default_options_count,
+        )
     }
 
     async fn handle(
@@ -63,8 +67,8 @@ impl ToolExecutor<ToolInvocation> for RequestUserInputHandler {
         }
 
         let args: RequestUserInputArgs = parse_arguments(&arguments)?;
-        let args =
-            normalize_request_user_input_args(args).map_err(FunctionCallError::RespondToModel)?;
+        let args = normalize_request_user_input_args(args, self.default_options_count)
+            .map_err(FunctionCallError::RespondToModel)?;
         let response = session
             .request_user_input(turn.as_ref(), call_id, args)
             .await

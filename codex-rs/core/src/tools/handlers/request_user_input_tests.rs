@@ -24,6 +24,7 @@ async fn multi_agent_v2_request_user_input_rejects_subagent_threads() {
 
     let result = RequestUserInputHandler {
         available_modes: Vec::new(),
+        default_options_count: 4,
     }
     .handle(ToolInvocation {
         session: Arc::new(session),
@@ -47,6 +48,14 @@ async fn multi_agent_v2_request_user_input_rejects_subagent_threads() {
                         {
                             "label": "B",
                             "description": "B"
+                        },
+                        {
+                            "label": "C",
+                            "description": "C"
+                        },
+                        {
+                            "label": "D",
+                            "description": "D"
                         }
                     ]
                 }]

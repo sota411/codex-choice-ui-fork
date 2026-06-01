@@ -90,6 +90,7 @@ use codex_protocol::protocol::NetworkAccess;
 use codex_protocol::protocol::RealtimeVoice;
 use codex_protocol::protocol::SandboxPolicy;
 use serde::Deserialize;
+use std::num::NonZeroUsize;
 use tempfile::tempdir;
 
 use super::*;
@@ -431,7 +432,10 @@ fn tools_experimental_request_user_input_defaults_to_enabled() {
         cfg.tools,
         Some(ToolsToml {
             web_search: None,
-            experimental_request_user_input: Some(ExperimentalRequestUserInput { enabled: true }),
+            experimental_request_user_input: Some(ExperimentalRequestUserInput {
+                enabled: true,
+                default_options_count: None,
+            }),
         })
     );
 }
@@ -450,7 +454,10 @@ enabled = false
         cfg.tools,
         Some(ToolsToml {
             web_search: None,
-            experimental_request_user_input: Some(ExperimentalRequestUserInput { enabled: false }),
+            experimental_request_user_input: Some(ExperimentalRequestUserInput {
+                enabled: false,
+                default_options_count: None,
+            }),
         })
     );
 }
@@ -464,6 +471,7 @@ async fn load_config_resolves_experimental_request_user_input_enabled() -> std::
                 web_search: None,
                 experimental_request_user_input: Some(ExperimentalRequestUserInput {
                     enabled: false,
+                    default_options_count: None,
                 }),
             }),
             ..ConfigToml::default()
@@ -474,6 +482,81 @@ async fn load_config_resolves_experimental_request_user_input_enabled() -> std::
     .await?;
 
     assert!(!config.experimental_request_user_input_enabled);
+    Ok(())
+}
+
+#[test]
+fn tools_experimental_request_user_input_deserializes_default_options_count() {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+[tools.experimental_request_user_input]
+default_options_count = 6
+"#,
+    )
+    .expect("TOML deserialization should succeed");
+
+    assert_eq!(
+        cfg.tools,
+        Some(ToolsToml {
+            web_search: None,
+            experimental_request_user_input: Some(ExperimentalRequestUserInput {
+                enabled: true,
+                default_options_count: NonZeroUsize::new(6),
+            }),
+        })
+    );
+}
+
+#[test]
+fn tools_experimental_request_user_input_rejects_zero_default_options_count() {
+    let err = toml::from_str::<ConfigToml>(
+        r#"
+[tools.experimental_request_user_input]
+default_options_count = 0
+"#,
+    )
+    .expect_err("zero options should fail");
+
+    assert!(
+        err.to_string()
+            .contains("invalid value: integer `0`, expected a nonzero usize")
+    );
+}
+
+#[tokio::test]
+async fn load_config_resolves_request_user_input_default_options_count() -> std::io::Result<()> {
+    let codex_home = tempdir()?;
+    let config = Config::load_from_base_config_with_overrides(
+        ConfigToml {
+            tools: Some(ToolsToml {
+                web_search: None,
+                experimental_request_user_input: Some(ExperimentalRequestUserInput {
+                    enabled: true,
+                    default_options_count: NonZeroUsize::new(6),
+                }),
+            }),
+            ..ConfigToml::default()
+        },
+        ConfigOverrides::default(),
+        codex_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.request_user_input_default_options_count, 6);
+    Ok(())
+}
+
+#[tokio::test]
+async fn load_config_defaults_request_user_input_options_count_to_four() -> std::io::Result<()> {
+    let codex_home = tempdir()?;
+    let config = Config::load_from_base_config_with_overrides(
+        ConfigToml::default(),
+        ConfigOverrides::default(),
+        codex_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.request_user_input_default_options_count, 4);
     Ok(())
 }
 

@@ -7,7 +7,10 @@ use std::collections::BTreeMap;
 
 pub const REQUEST_USER_INPUT_TOOL_NAME: &str = "request_user_input";
 
-pub fn create_request_user_input_tool(description: String) -> ToolSpec {
+pub fn create_request_user_input_tool(
+    description: String,
+    default_options_count: usize,
+) -> ToolSpec {
     let option_props = BTreeMap::from([
         (
             "label".to_string(),
@@ -21,14 +24,16 @@ pub fn create_request_user_input_tool(description: String) -> ToolSpec {
         ),
     ]);
 
-    let options_schema = JsonSchema::array(JsonSchema::object(
+    let options_schema = JsonSchema::array(
+        JsonSchema::object(
             option_props,
             Some(vec!["label".to_string(), "description".to_string()]),
             Some(false.into()),
-        ), Some(
-            "Provide 2-6 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include an \"Other\" option; set isOther only when free-form input is needed."
-                .to_string(),
-        ));
+        ),
+        Some(format!(
+            "Provide exactly {default_options_count} mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include a free-form answer option; the client will add \"Custom answer\" automatically."
+        )),
+    );
 
     let question_props = BTreeMap::from([
         (
@@ -50,13 +55,6 @@ pub fn create_request_user_input_tool(description: String) -> ToolSpec {
             )),
         ),
         ("options".to_string(), options_schema),
-        (
-            "isOther".to_string(),
-            JsonSchema::boolean(Some(
-                "When true, add a custom answer option. Omit unless the user needs free-form input."
-                    .to_string(),
-            )),
-        ),
     ]);
 
     let questions_schema = JsonSchema::array(
@@ -104,14 +102,23 @@ pub fn request_user_input_unavailable_message(
 }
 
 pub fn normalize_request_user_input_args(
-    args: RequestUserInputArgs,
+    mut args: RequestUserInputArgs,
+    default_options_count: usize,
 ) -> Result<RequestUserInputArgs, String> {
-    let missing_options = args
-        .questions
-        .iter()
-        .any(|question| question.options.as_ref().is_none_or(Vec::is_empty));
-    if missing_options {
-        return Err("request_user_input requires non-empty options for every question".to_string());
+    if default_options_count == 0 {
+        return Err(
+            "request_user_input default options count must be greater than zero".to_string(),
+        );
+    }
+
+    for question in &mut args.questions {
+        let options_count = question.options.as_ref().map_or(0, Vec::len);
+        if options_count != default_options_count {
+            return Err(format!(
+                "request_user_input requires exactly {default_options_count} options for every question; received {options_count}"
+            ));
+        }
+        question.is_other = true;
     }
 
     Ok(args)

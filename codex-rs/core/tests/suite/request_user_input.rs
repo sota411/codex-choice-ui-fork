@@ -72,6 +72,30 @@ fn call_output_content_and_success(
     (content, success)
 }
 
+fn request_user_input_args_json() -> String {
+    json!({
+        "questions": [{
+            "id": "confirm_path",
+            "header": "Confirm",
+            "question": "Proceed with the plan?",
+            "options": [{
+                "label": "Yes (Recommended)",
+                "description": "Continue the current plan."
+            }, {
+                "label": "No",
+                "description": "Stop and revisit the approach."
+            }, {
+                "label": "Revise",
+                "description": "Adjust the plan before continuing."
+            }, {
+                "label": "Pause",
+                "description": "Pause the work and wait for more context."
+            }]
+        }]
+    })
+    .to_string()
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn request_user_input_round_trip_resolves_pending() -> anyhow::Result<()> {
     request_user_input_round_trip_for_mode(ModeKind::Plan).await
@@ -102,21 +126,7 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
         .await?;
 
     let call_id = "user-input-call";
-    let request_args = json!({
-        "questions": [{
-            "id": "confirm_path",
-            "header": "Confirm",
-            "question": "Proceed with the plan?",
-            "options": [{
-                "label": "Yes (Recommended)",
-                "description": "Continue the current plan."
-            }, {
-                "label": "No",
-                "description": "Stop and revisit the approach."
-            }]
-        }]
-    })
-    .to_string();
+    let request_args = request_user_input_args_json();
 
     let first_response = sse(vec![
         ev_response_created("resp-1"),
@@ -170,7 +180,8 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
     .await;
     assert_eq!(request.call_id, call_id);
     assert_eq!(request.questions.len(), 1);
-    assert_eq!(request.questions[0].is_other, false);
+    assert_eq!(request.questions[0].is_other, true);
+    assert_eq!(request.questions[0].options.as_ref().map(Vec::len), Some(4));
     assert!(
         timeout(Duration::from_millis(200), async {
             loop {
@@ -254,21 +265,7 @@ async fn request_user_input_interrupt_emits_deferred_token_count() -> anyhow::Re
     } = test_codex().build(&server).await?;
 
     let call_id = "user-input-interrupt";
-    let request_args = json!({
-        "questions": [{
-            "id": "confirm_path",
-            "header": "Confirm",
-            "question": "Proceed with the plan?",
-            "options": [{
-                "label": "Yes (Recommended)",
-                "description": "Continue the current plan."
-            }, {
-                "label": "No",
-                "description": "Stop and revisit the approach."
-            }]
-        }]
-    })
-    .to_string();
+    let request_args = request_user_input_args_json();
 
     let response = sse(vec![
         ev_response_created("resp-interrupt"),
@@ -350,21 +347,7 @@ where
 
     let mode_slug = mode_name.to_lowercase().replace(' ', "-");
     let call_id = format!("user-input-{mode_slug}-call");
-    let request_args = json!({
-        "questions": [{
-            "id": "confirm_path",
-            "header": "Confirm",
-            "question": "Proceed with the plan?",
-            "options": [{
-                "label": "Yes (Recommended)",
-                "description": "Continue the current plan."
-            }, {
-                "label": "No",
-                "description": "Stop and revisit the approach."
-            }]
-        }]
-    })
-    .to_string();
+    let request_args = request_user_input_args_json();
 
     let first_response = sse(vec![
         ev_response_created("resp-1"),

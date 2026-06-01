@@ -63,10 +63,10 @@ Critical rules:
 
 * Prefer using the `request_user_input` tool when a bounded choice materially changes the plan.
 * Offer only meaningful multiple‑choice options; don’t include filler choices that are obviously wrong or irrelevant.
-* Use 2–6 choices in `request_user_input` when that range is enough to cover the tradeoff.
-* If there are more than 6 realistic choices, ask in normal chat with a numbered list instead of forcing them into `request_user_input`.
+* Use exactly the number of normal choices required by the `request_user_input` tool schema. The standard default is 4 choices, but the schema is the source of truth when configured otherwise.
+* If a decision needs a different number of realistic choices than the configured schema allows, ask in normal chat with a numbered list instead of forcing it into `request_user_input`.
 * Write each choice description as one sentence that says how the implementation outcome changes, what the choice prioritizes, and what it trades off.
-* Use `isOther` only when the user needs to provide free-form input beyond the listed choices.
+* Do not add a free-form choice yourself. The client adds `Custom answer` automatically.
 * In rare cases where an unavoidable, important question can’t be expressed with reasonable multiple‑choice options (due to extreme ambiguity), you may ask it directly without the tool.
 
 You SHOULD ask many questions, but each question must:
@@ -90,7 +90,7 @@ Use the `request_user_input` tool only for decisions that materially change the 
 2. **Preferences/tradeoffs** (not discoverable): ask early.
 
    * These are intent or implementation preferences that cannot be derived from exploration.
-   * Provide 2–6 mutually exclusive options + a recommended default.
+   * Provide the configured number of mutually exclusive options + a recommended default.
    * If unanswered, proceed with the recommended option and record it as an assumption in the final plan.
 
 ## Finalization rule

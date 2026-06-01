@@ -22,7 +22,7 @@ fn default_available_modes() -> Vec<ModeKind> {
 #[test]
 fn request_user_input_tool_includes_questions_schema() {
     assert_eq!(
-        create_request_user_input_tool("Ask the user to choose.".to_string()),
+        create_request_user_input_tool("Ask the user to choose.".to_string(), 4),
         ToolSpec::Function(ResponsesApiTool {
             name: "request_user_input".to_string(),
             description: "Ask the user to choose.".to_string(),
@@ -44,13 +44,6 @@ fn request_user_input_tool_includes_questions_schema() {
                                     "id".to_string(),
                                     JsonSchema::string(Some(
                                         "Stable identifier for mapping answers (snake_case)."
-                                            .to_string(),
-                                    )),
-                                ),
-                                (
-                                    "isOther".to_string(),
-                                    JsonSchema::boolean(Some(
-                                        "When true, add a custom answer option. Omit unless the user needs free-form input."
                                             .to_string(),
                                     )),
                                 ),
@@ -81,7 +74,7 @@ fn request_user_input_tool_includes_questions_schema() {
                                             Some(false.into()),
                                         ),
                                         Some(
-                                            "Provide 2-6 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include an \"Other\" option; set isOther only when free-form input is needed."
+                                            "Provide exactly 4 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". For each description, explain in one short sentence what this choice prioritizes and what it trades off. Do not include a free-form answer option; the client will add \"Custom answer\" automatically."
                                                 .to_string(),
                                         ),
                                     ),
@@ -118,33 +111,52 @@ fn request_user_input_question(is_other: bool) -> RequestUserInputQuestion {
         question: "Choose an option.".to_string(),
         is_other,
         is_secret: false,
-        options: Some(vec![RequestUserInputQuestionOption {
-            label: "Option 1".to_string(),
-            description: "Prioritizes the first path and trades off the second.".to_string(),
-        }]),
+        options: Some(
+            (1..=4)
+                .map(|idx| RequestUserInputQuestionOption {
+                    label: format!("Option {idx}"),
+                    description: format!("Prioritizes path {idx} and trades off the other paths."),
+                })
+                .collect(),
+        ),
     }
 }
 
 #[test]
-fn normalize_request_user_input_args_preserves_default_is_other_false() {
+fn normalize_request_user_input_args_adds_custom_answer_by_default() {
     let args = RequestUserInputArgs {
         questions: vec![request_user_input_question(false)],
     };
 
-    let normalized = normalize_request_user_input_args(args.clone()).expect("valid input");
+    let normalized = normalize_request_user_input_args(args, 4).expect("valid input");
+
+    assert!(normalized.questions[0].is_other);
+}
+
+#[test]
+fn normalize_request_user_input_args_keeps_custom_answer_enabled() {
+    let args = RequestUserInputArgs {
+        questions: vec![request_user_input_question(true)],
+    };
+
+    let normalized = normalize_request_user_input_args(args.clone(), 4).expect("valid input");
 
     assert_eq!(normalized, args);
 }
 
 #[test]
-fn normalize_request_user_input_args_preserves_explicit_is_other_true() {
-    let args = RequestUserInputArgs {
-        questions: vec![request_user_input_question(true)],
+fn normalize_request_user_input_args_rejects_wrong_option_count() {
+    let mut args = RequestUserInputArgs {
+        questions: vec![request_user_input_question(false)],
     };
+    args.questions[0].options.as_mut().expect("options").pop();
 
-    let normalized = normalize_request_user_input_args(args.clone()).expect("valid input");
+    let err = normalize_request_user_input_args(args, 4).expect_err("wrong option count");
 
-    assert_eq!(normalized, args);
+    assert_eq!(
+        err,
+        "request_user_input requires exactly 4 options for every question; received 3"
+    );
 }
 
 #[test]

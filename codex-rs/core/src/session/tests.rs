@@ -8756,7 +8756,7 @@ async fn pending_request_user_input_does_not_spawn_extra_goal_continuation() -> 
                 ev_function_call(
                     "call-ask-user",
                     "request_user_input",
-                    r#"{"questions":[{"header":"Choice","id":"next_step","question":"Pick one","options":[{"label":"Outline","description":"Start with an outline."},{"label":"Draft","description":"Write a full draft."}]}]}"#,
+                    r#"{"questions":[{"header":"Choice","id":"next_step","question":"Pick one","options":[{"label":"Outline","description":"Start with an outline."},{"label":"Draft","description":"Write a full draft."},{"label":"Revise","description":"Revise the benchmark scope."},{"label":"Pause","description":"Pause until more context is available."}]}]}"#,
                 ),
                 ev_completed("resp-3"),
             ]),

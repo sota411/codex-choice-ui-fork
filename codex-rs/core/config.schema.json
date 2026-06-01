@@ -766,6 +766,11 @@
     "ExperimentalRequestUserInput": {
       "additionalProperties": false,
       "properties": {
+        "default_options_count": {
+          "format": "uint",
+          "minimum": 1.0,
+          "type": "integer"
+        },
         "enabled": {
           "default": true,
           "type": "boolean"

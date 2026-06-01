@@ -213,6 +213,12 @@ async fn mcp_tool_call_metadata_records_prior_request_user_input_tool() -> Resul
             }, {
                 "label": "No",
                 "description": "Stop and revisit the approach."
+            }, {
+                "label": "Revise",
+                "description": "Adjust the plan before continuing."
+            }, {
+                "label": "Pause",
+                "description": "Pause the work and wait for more context."
             }]
         }]
     })

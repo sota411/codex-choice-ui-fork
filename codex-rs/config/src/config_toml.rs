@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::path::Path;
 
 use crate::HooksToml;
@@ -629,6 +630,8 @@ pub struct ToolsToml {
 pub struct ExperimentalRequestUserInput {
     #[serde(default = "default_true")]
     pub enabled: bool,
+    #[schemars(range(min = 1))]
+    pub default_options_count: Option<NonZeroUsize>,
 }
 
 #[derive(Deserialize)]
