@@ -70,12 +70,13 @@ def run_prompt() -> int:
     turn_id = str(payload["turn_id"])
     with memo_lock(memo_path):
         text = read_text_or_empty(memo_path)
-        write_state(payload, memo_path)
 
         if has_done_marker(text, session_id, turn_id):
+            write_state(payload, memo_path, memo_required=False)
             return 0
 
         if find_pending_blocks(text, session_id=session_id, turn_id=turn_id):
+            write_state(payload, memo_path, memo_required=True)
             emit_user_prompt_context(
                 "memo.md に今回の turn の codex-memo:pending が残っています。"
                 "作業終了前に各項目を埋め、pending を done に変更してください。"
@@ -89,6 +90,7 @@ def run_prompt() -> int:
         if not text:
             text = "# 作業メモ\n\n"
         memo_path.write_text(text + entry, encoding="utf-8")
+        write_state(payload, memo_path, memo_required=True)
 
     emit_user_prompt_context(
         "memo.md に今回の作業メモ枠を追加しました。"
@@ -102,6 +104,8 @@ def run_stop() -> int:
     payload = read_payload()
     state = read_state(payload)
     if state is None:
+        return 0
+    if not state.get("memo_required", False):
         return 0
 
     memo_path = Path(str(state["memo_path"]))
@@ -187,7 +191,12 @@ def state_path(session_id: object, turn_id: object) -> Path:
     return state_dir() / f"{key}.json"
 
 
-def write_state(payload: dict[str, object], memo_path: Path) -> None:
+def write_state(
+    payload: dict[str, object],
+    memo_path: Path,
+    *,
+    memo_required: bool,
+) -> None:
     state_dir().mkdir(parents=True, exist_ok=True)
     state_path(payload["session_id"], payload["turn_id"]).write_text(
         json.dumps(
@@ -195,6 +204,7 @@ def write_state(payload: dict[str, object], memo_path: Path) -> None:
                 "session_id": payload["session_id"],
                 "turn_id": payload["turn_id"],
                 "memo_path": str(memo_path),
+                "memo_required": memo_required,
             },
             ensure_ascii=False,
         ),
