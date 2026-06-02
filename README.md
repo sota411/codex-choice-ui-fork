@@ -102,9 +102,10 @@ max_questions = 4
 
 通常版とカスタム版の両方で、Codex hooks により `memo.md` の記録を強制します。
 
+- Codex を開いたフォルダ直下に `memo.md` がある場合だけ hook が動きます。
 - `UserPromptSubmit` hook が作業開始時に `memo.md` へテンプレートを追加します。
-- `Stop` hook が未記入や `pending` マーカーを検出すると、Codex にメモ追記を促して終了を止めます。
-- Git の `pre-commit` hook も未完了メモが残っている commit を止めます。
+- `Stop` hook は今回の turn の未記入や `pending` マーカーだけを検出し、他エージェントの未完了メモでは終了を止めません。
+- Git の `pre-commit` hook は未完了メモが残っている commit を止めます。
 
 初回起動時や hook 変更後は、Codex 内で `/hooks` を開き、`codex_memo_guard.py` の hook を信頼してください。完了時は今回分の `pending` マーカーを `done` に変更し、各項目を埋めます。該当しない項目は `なし` と書けば通ります。
 
