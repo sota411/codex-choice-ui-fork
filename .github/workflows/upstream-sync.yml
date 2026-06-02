@@ -54,7 +54,19 @@ jobs:
           fi
 
           git switch -c "$BRANCH_NAME"
-          git merge --no-ff -m "chore: 公式 Codex の最新版を取り込み" upstream/main
+          if ! git merge --no-ff -m "chore: 公式 Codex の最新版を取り込み" upstream/main; then
+            mapfile -t conflicted_files < <(git diff --name-only --diff-filter=U)
+
+            if [[ "${#conflicted_files[@]}" -eq 1 && "${conflicted_files[0]}" == "AGENTS.md" ]]; then
+              echo "Resolving ignored AGENTS.md conflict by keeping this fork's deletion."
+              git rm -f AGENTS.md
+              git commit --no-edit
+            else
+              printf 'Unexpected upstream merge conflicts:\n'
+              printf '%s\n' "${conflicted_files[@]}"
+              exit 1
+            fi
+          fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Setup Rust
