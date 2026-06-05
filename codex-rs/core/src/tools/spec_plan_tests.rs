@@ -939,6 +939,42 @@ async fn code_mode_only_exposes_code_executor_and_hides_nested_tools() {
 }
 
 #[tokio::test]
+async fn excluded_deferred_namespaces_do_not_enable_nested_tool_guidance() {
+    let plan = probe_with(
+        |turn| {
+            set_features(turn, &[Feature::CodeMode, Feature::CodeModeOnly]);
+            set_feature(turn, Feature::Collab, /*enabled*/ false);
+            turn.model_info.supports_search_tool = true;
+            update_config(turn, |config| {
+                config.code_mode.excluded_tool_namespaces = vec!["excluded".to_string()];
+            });
+        },
+        ToolPlanInputs {
+            dynamic_tools: vec![dynamic_tool(
+                Some("excluded"),
+                "lookup",
+                /*defer_loading*/ true,
+            )],
+            ..ToolPlanInputs::default()
+        },
+    )
+    .await;
+
+    let ToolSpec::Freeform(exec) = plan.visible_spec(codex_code_mode::PUBLIC_TOOL_NAME) else {
+        panic!("expected code mode exec tool");
+    };
+    assert!(
+        !exec
+            .description
+            .contains("Some deferred nested tools may be omitted")
+    );
+    plan.assert_registered_contains(&[
+        &ToolName::namespaced("excluded", "lookup").to_string(),
+        "tool_search",
+    ]);
+}
+
+#[tokio::test]
 async fn multi_agent_feature_selects_one_agent_tool_family() {
     let v1 = probe(|turn| {
         set_feature(turn, Feature::Collab, /*enabled*/ true);
@@ -1167,7 +1203,16 @@ async fn code_mode_only_can_expose_namespaced_multi_agent_v2_as_normal_tools() {
     })
     .await;
 
-    assert_eq!(plan.visible_names, vec!["exec", "wait", "agents"]);
+    assert_eq!(
+        plan.visible_names,
+        vec![
+            "exec",
+            "wait",
+            "agents",
+            // Hosted Responses tools.
+            "web_search",
+        ]
+    );
     assert!(
         !plan
             .namespace_function_names("agents")
@@ -1233,6 +1278,32 @@ async fn hosted_tools_follow_provider_auth_model_and_config_gates() {
             search_context_size: None,
             search_content_types: Some(vec!["text".to_string(), "image".to_string()]),
         }
+    );
+
+    let code_mode_only = probe(|turn| {
+        use_chatgpt_auth(turn);
+        set_features(turn, &[Feature::CodeModeOnly, Feature::MultiAgentV2]);
+        set_web_search_mode(turn, WebSearchMode::Live);
+        turn.model_info.input_modalities = vec![InputModality::Image];
+    })
+    .await;
+    assert_eq!(
+        code_mode_only.visible_names,
+        vec![
+            // Code-mode entrypoints.
+            codex_code_mode::PUBLIC_TOOL_NAME,
+            codex_code_mode::WAIT_TOOL_NAME,
+            // Multi-agent v2 tools.
+            "spawn_agent",
+            "send_message",
+            "followup_task",
+            "wait_agent",
+            "close_agent",
+            "list_agents",
+            // Hosted Responses tools.
+            "web_search",
+            "image_generation",
+        ]
     );
 
     let standalone_web_search_without_web_run = probe(|turn| {
