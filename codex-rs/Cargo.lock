@@ -2145,12 +2145,14 @@ dependencies = [
  "anyhow",
  "codex-apply-patch",
  "codex-exec-server",
+ "codex-install-context",
  "codex-linux-sandbox",
  "codex-sandboxing",
  "codex-shell-escalation",
  "codex-utils-absolute-path",
  "codex-utils-home-dir",
  "dotenvy",
+ "pretty_assertions",
  "tempfile",
  "tokio",
 ]
@@ -2347,7 +2349,6 @@ dependencies = [
 name = "codex-cloud-config"
 version = "0.0.0"
 dependencies = [
- "async-trait",
  "base64 0.22.1",
  "chrono",
  "codex-backend-client",
@@ -2508,6 +2509,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-context-fragments"
+version = "0.0.0"
+dependencies = [
+ "codex-protocol",
+ "codex-utils-string",
+]
+
+[[package]]
 name = "codex-core"
 version = "0.0.0"
 dependencies = [
@@ -2529,6 +2538,7 @@ dependencies = [
  "codex-code-mode",
  "codex-config",
  "codex-connectors",
+ "codex-context-fragments",
  "codex-core-plugins",
  "codex-core-skills",
  "codex-exec-server",
@@ -2693,6 +2703,7 @@ dependencies = [
  "codex-analytics",
  "codex-app-server-protocol",
  "codex-config",
+ "codex-context-fragments",
  "codex-exec-server",
  "codex-login",
  "codex-model-provider",
@@ -2854,6 +2865,7 @@ name = "codex-extension-api"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "codex-context-fragments",
  "codex-protocol",
  "codex-tools",
 ]
@@ -3040,6 +3052,7 @@ dependencies = [
  "codex-model-provider-info",
  "codex-protocol",
  "codex-tools",
+ "codex-utils-absolute-path",
  "http 1.4.0",
  "pretty_assertions",
  "schemars 0.8.22",
@@ -3281,6 +3294,7 @@ name = "codex-message-history"
 version = "0.0.0"
 dependencies = [
  "codex-config",
+ "memchr",
  "pretty_assertions",
  "serde",
  "serde_json",
@@ -3395,6 +3409,7 @@ dependencies = [
  "codex-core",
  "codex-model-provider-info",
  "futures",
+ "memchr",
  "pretty_assertions",
  "reqwest 0.12.28",
  "semver",
@@ -3459,6 +3474,7 @@ name = "codex-prompts"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "codex-context-fragments",
  "codex-execpolicy",
  "codex-git-utils",
  "codex-protocol",
@@ -3563,6 +3579,7 @@ dependencies = [
  "codex-utils-pty",
  "futures",
  "keyring",
+ "memchr",
  "oauth2",
  "pretty_assertions",
  "reqwest 0.13.4",
@@ -3580,6 +3597,7 @@ dependencies = [
  "urlencoding",
  "webbrowser",
  "which 8.0.0",
+ "wiremock",
 ]
 
 [[package]]
@@ -3714,6 +3732,19 @@ dependencies = [
  "codex-utils-absolute-path",
  "include_dir",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "codex-skills-extension"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "codex-core",
+ "codex-core-skills",
+ "codex-extension-api",
+ "codex-protocol",
+ "pretty_assertions",
+ "tokio",
 ]
 
 [[package]]
